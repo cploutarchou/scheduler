@@ -11,6 +11,7 @@ A non-blocking, flexible task scheduler for Rust with asynchronous execution.
 - Flexible task management
 - Unique task identification
 - Thread-safe task execution
+- Persistent task storage
 
 ## Installation
 
@@ -103,6 +104,96 @@ Each error type comes with a suggested recovery strategy:
 - `Abort`: Stop further execution
 - `Reschedule`: Attempt to schedule the task at a different time
 
+## Persistent Task Storage
+
+The Scheduler provides robust persistent task storage using SQLite, enabling you to save, retrieve, and manage tasks across application restarts.
+
+### Key Features
+- 💾 SQLite-based persistent storage
+- 🔄 Save and retrieve tasks
+- 📋 List all persisted tasks
+- 🗑️ Delete individual tasks
+- 🧹 Clear all tasks from storage
+- 🔒 Thread-safe task persistence
+- 🕒 Preserve task metadata (status, creation time, last execution)
+
+### Usage Example
+
+```rust
+use scheduler::persistence::TaskPersistenceManager;
+use scheduler::task::TaskBuilder;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create a persistence manager with a database file
+    let persistence_manager = TaskPersistenceManager::new("tasks.db").await?;
+    
+    // Create a daily backup task
+    let backup_task = TaskBuilder::new("backup_task", || {
+        // Backup logic
+        Ok(())
+    })
+    .every_hours(24)
+    .build();
+    
+    // Save the task to persistent storage
+    persistence_manager.save_task(&backup_task).await?;
+    
+    // Retrieve all persisted tasks
+    let tasks = persistence_manager.list_tasks().await?;
+    println!("Persisted Tasks: {}", tasks.len());
+    
+    // Retrieve a specific task by ID
+    let task_details = persistence_manager.get_task(&backup_task.id().to_string()).await?;
+    
+    // Delete a specific task
+    persistence_manager.delete_task(&backup_task.id().to_string()).await?;
+    
+    // Clear all tasks from storage
+    persistence_manager.clear_tasks().await?;
+    
+    Ok(())
+}
+```
+
+### Advanced Persistence Scenarios
+
+#### Handling Task Metadata
+The `PersistableTask` struct captures comprehensive task information:
+- Unique Task ID
+- Task Name
+- Current Status
+- Creation Timestamp
+- Last Execution Time
+- Next Execution Time
+- Interval Configuration
+- Daily Scheduling Time
+
+#### Concurrent Access
+The persistence manager supports concurrent task storage and retrieval, making it suitable for multi-threaded applications.
+
+### Performance Considerations
+- Uses SQLite for lightweight, file-based storage
+- Minimal overhead for task persistence
+- Asynchronous operations to prevent blocking
+
+### Error Handling
+Robust error handling with detailed `PersistenceError` variants:
+- Database connection errors
+- Serialization/Deserialization issues
+- Constraint violations
+
+### Best Practices
+1. Use a consistent database path
+2. Handle potential persistence errors
+3. Avoid storing large, complex task closures
+4. Periodically clean up old or completed tasks
+
+### Limitations
+- Currently supports SQLite backend
+- Task function/closure not persisted (only metadata)
+- Recommended for metadata and scheduling information
+
 ## Contributing
 
 Contributions are welcome! Please follow these steps:
@@ -131,9 +222,9 @@ cargo bench
 
 ## Roadmap
 
+- [x] Persistent task storage
 - [ ] More scheduling options
 - [ ] Enhanced logging
-- [ ] Persistent task storage
 - [ ] Web dashboard for task monitoring
 
 ## License

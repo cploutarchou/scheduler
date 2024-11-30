@@ -17,39 +17,36 @@ categories = [
     "rust-patterns"
 ]
 authors = ["Christos Ploutarchou <cploutarchou@gmail.com>"]
-rust-version = "1.70"  # Minimum supported Rust version
+rust-version = "1.70"
 
 [lib]
 name = "scheduler"
 path = "src/lib.rs"
 
-[features]
-default = []
-rabbitmq = ["lapin"]
-kafka = [] # Add kafka dependency when implementing
-
 [dependencies]
 # Core dependencies
-tokio = { version = "1.0", features = ["full"] }
-chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.4", features = ["v4", "serde"] }
+tokio = { version = "1.28", features = ["full"] }
+chrono = { version = "0.4.26", features = ["serde"] }
+uuid = { version = "1.3", features = ["v4", "serde"] }
 
 # Error handling
-thiserror = "1.0"
-anyhow = "1.0"
+thiserror = "1.0.40"
+anyhow = "1.0.71"
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-
-# Logging and tracing
-tracing = { version = "0.1", features = ["attributes"] }
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { version = "1.0.163", features = ["derive"] }
+serde_json = "1.0.96"
 
 # Async utilities
+async-trait = "0.1.68"
 futures = "0.3"
-async-trait = "0.1"
-tokio-util = "0.7"
+
+# Persistent storage
+rusqlite = { version = "0.29.0", features = ["bundled", "serde_json"] }
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = "0.3"
 
 # Message Queue - optional
 lapin = { version = "2.1", optional = true }  # RabbitMQ client
@@ -58,9 +55,11 @@ lapin = { version = "2.1", optional = true }  # RabbitMQ client
 once_cell = "1.18"
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["async_tokio"] }
+tokio = { version = "1.28", features = ["test-util", "macros"] }
+criterion = { version = "0.4", features = ["async_tokio"] }
 tokio-test = "0.4"
-pretty_assertions = "1.4"
+pretty_assertions = "1.3.0"
+tempfile = "3.5.0"
 
 [[bench]]
 name = "scheduler_benchmarks"

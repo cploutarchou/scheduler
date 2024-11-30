@@ -334,17 +334,17 @@ impl Job {
         
         let (hour, minute, second) = match parts.len() {
             2 => {
-                let h: u32 = parts[0].parse().map_err(|_| SchedulerError::InvalidTimeFormat)?;
-                let m: u32 = parts[1].parse().map_err(|_| SchedulerError::InvalidTimeFormat)?;
+                let h: u32 = parts[0].parse().map_err(|_| SchedulerError::InvalidTimeFormat(time_str.to_string()))?;
+                let m: u32 = parts[1].parse().map_err(|_| SchedulerError::InvalidTimeFormat(time_str.to_string()))?;
                 (h, m, 0)
             }
             3 => {
-                let h: u32 = parts[0].parse().map_err(|_| SchedulerError::InvalidTimeFormat)?;
-                let m: u32 = parts[1].parse().map_err(|_| SchedulerError::InvalidTimeFormat)?;
-                let s: u32 = parts[2].parse().map_err(|_| SchedulerError::InvalidTimeFormat)?;
+                let h: u32 = parts[0].parse().map_err(|_| SchedulerError::InvalidTimeFormat(time_str.to_string()))?;
+                let m: u32 = parts[1].parse().map_err(|_| SchedulerError::InvalidTimeFormat(time_str.to_string()))?;
+                let s: u32 = parts[2].parse().map_err(|_| SchedulerError::InvalidTimeFormat(time_str.to_string()))?;
                 (h, m, s)
             }
-            _ => return Err(SchedulerError::InvalidTimeFormat),
+            _ => return Err(SchedulerError::InvalidTimeFormat(time_str.to_string())),
         };
 
         if let Some(schedule) = &mut self.schedule {

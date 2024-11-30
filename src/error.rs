@@ -2,7 +2,7 @@ use thiserror::Error;
 use std::time::Duration;
 use chrono;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum SchedulerError {
     #[error("Task execution failed: {0}")]
     TaskExecutionFailed(String),
@@ -17,7 +17,7 @@ pub enum SchedulerError {
     InvalidSchedule(String),
     
     #[error("IO error: {0}")]
-    IoError(#[from] std::io::Error),
+    IoError(String),
     
     #[error("Task already exists: {0}")]
     TaskAlreadyExists(String),
@@ -33,6 +33,15 @@ pub enum SchedulerError {
 
     #[error("Scheduling conflict: Task cannot be scheduled at the specified time")]
     SchedulingConflict,
+    
+    #[error("Persistence error: {0}")]
+    PersistenceError(String),
+}
+
+impl From<std::io::Error> for SchedulerError {
+    fn from(error: std::io::Error) -> Self {
+        SchedulerError::IoError(error.to_string())
+    }
 }
 
 impl SchedulerError {
@@ -52,13 +61,13 @@ impl SchedulerError {
 /// Suggested recovery strategies for different error types
 #[derive(Debug, Clone, Copy)]
 pub enum RecoveryStrategy {
-    /// Retry the operation
+    /// Automatically retry the operation
     Retry,
-    /// Ignore the error and continue
+    /// Skip the error and continue
     Ignore,
-    /// Attempt to correct the error
+    /// Attempt to fix the error
     Correct,
-    /// Abort the operation
+    /// Stop further execution
     Abort,
     /// Attempt to reschedule
     Reschedule,
@@ -67,27 +76,24 @@ pub enum RecoveryStrategy {
 /// Error context provides additional information about an error
 #[derive(Debug, Clone)]
 pub struct ErrorContext {
-    /// The original error
     pub error: SchedulerError,
-    /// Timestamp when the error occurred
     pub timestamp: chrono::DateTime<chrono::Utc>,
-    /// Optional retry delay
-    pub retry_after: Option<Duration>,
+    pub retry_delay: Option<Duration>,
 }
 
 impl ErrorContext {
     /// Create a new error context
     pub fn new(error: SchedulerError) -> Self {
-        ErrorContext {
+        Self {
             error,
             timestamp: chrono::Utc::now(),
-            retry_after: None,
+            retry_delay: None,
         }
     }
 
     /// Set a retry delay
     pub fn with_retry_delay(mut self, delay: Duration) -> Self {
-        self.retry_after = Some(delay);
+        self.retry_delay = Some(delay);
         self
     }
 }

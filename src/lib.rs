@@ -49,8 +49,9 @@
 //! ```
 
 pub mod error;
-pub mod scheduler;
 pub mod task;
+pub mod scheduler;
+pub mod persistence;
 
 pub use error::SchedulerError;
 pub use scheduler::{Scheduler, Job};
@@ -63,6 +64,18 @@ pub struct TaskBuilder {
     interval: Option<scheduler::Interval>,
     at_time: Option<chrono::NaiveTime>,
     retries: u32,
+}
+
+impl Clone for TaskBuilder {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            task: None, // We can't clone the task function
+            interval: self.interval.clone(),
+            at_time: self.at_time,
+            retries: self.retries,
+        }
+    }
 }
 
 impl TaskBuilder {
@@ -104,17 +117,17 @@ impl TaskBuilder {
         
         let (hour, minute, second) = match parts.len() {
             2 => {
-                let h: u32 = parts[0].parse().map_err(|_| SchedulerError::InvalidTimeFormat)?;
-                let m: u32 = parts[1].parse().map_err(|_| SchedulerError::InvalidTimeFormat)?;
+                let h: u32 = parts[0].parse().map_err(|_| SchedulerError::InvalidTimeFormat(format!("Invalid hour: {}", parts[0])))?;
+                let m: u32 = parts[1].parse().map_err(|_| SchedulerError::InvalidTimeFormat(format!("Invalid minute: {}", parts[1])))?;
                 (h, m, 0)
             }
             3 => {
-                let h: u32 = parts[0].parse().map_err(|_| SchedulerError::InvalidTimeFormat)?;
-                let m: u32 = parts[1].parse().map_err(|_| SchedulerError::InvalidTimeFormat)?;
-                let s: u32 = parts[2].parse().map_err(|_| SchedulerError::InvalidTimeFormat)?;
+                let h: u32 = parts[0].parse().map_err(|_| SchedulerError::InvalidTimeFormat(format!("Invalid hour: {}", parts[0])))?;
+                let m: u32 = parts[1].parse().map_err(|_| SchedulerError::InvalidTimeFormat(format!("Invalid minute: {}", parts[1])))?;
+                let s: u32 = parts[2].parse().map_err(|_| SchedulerError::InvalidTimeFormat(format!("Invalid second: {}", parts[2])))?;
                 (h, m, s)
             }
-            _ => return Err(SchedulerError::InvalidTimeFormat),
+            _ => return Err(SchedulerError::InvalidTimeFormat(format!("Invalid time format: {}", time))),
         };
 
         self.at_time = Some(chrono::NaiveTime::from_hms_opt(hour, minute, second).unwrap());

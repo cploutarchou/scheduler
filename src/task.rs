@@ -1,16 +1,19 @@
 use crate::error::SchedulerError;
 use chrono::{DateTime, Duration, Utc};
+use serde::{Serialize, Deserialize};
 use std::fmt;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub enum TaskStatus {
     Pending,
     Running,
     Completed,
     Failed(String),
+    Paused,
+    Cancelled,
 }
 
 impl fmt::Debug for TaskStatus {
@@ -20,6 +23,35 @@ impl fmt::Debug for TaskStatus {
             TaskStatus::Running => write!(f, "Running"),
             TaskStatus::Completed => write!(f, "Completed"),
             TaskStatus::Failed(err) => write!(f, "Failed({})", err),
+            TaskStatus::Paused => write!(f, "Paused"),
+            TaskStatus::Cancelled => write!(f, "Cancelled"),
+        }
+    }
+}
+
+impl fmt::Display for TaskStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TaskStatus::Pending => write!(f, "Pending"),
+            TaskStatus::Running => write!(f, "Running"),
+            TaskStatus::Completed => write!(f, "Completed"),
+            TaskStatus::Failed(_) => write!(f, "Failed"),
+            TaskStatus::Paused => write!(f, "Paused"),
+            TaskStatus::Cancelled => write!(f, "Cancelled"),
+        }
+    }
+}
+
+impl From<String> for TaskStatus {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "Pending" => TaskStatus::Pending,
+            "Running" => TaskStatus::Running,
+            "Completed" => TaskStatus::Completed,
+            "Failed" => TaskStatus::Failed("".to_string()),
+            "Paused" => TaskStatus::Paused,
+            "Cancelled" => TaskStatus::Cancelled,
+            _ => TaskStatus::Failed("".to_string()),
         }
     }
 }
@@ -47,6 +79,7 @@ pub struct Task {
     pub(crate) retry_count: u32,
     pub(crate) status: Arc<Mutex<TaskStatus>>,
     pub(crate) last_run: Option<DateTime<Utc>>,
+    pub(crate) created_at: DateTime<Utc>,
 }
 
 impl Clone for Task {
@@ -62,6 +95,7 @@ impl Clone for Task {
             retry_count: self.retry_count,
             status: Arc::clone(&self.status),
             last_run: self.last_run,
+            created_at: self.created_at,
         }
     }
 }
@@ -77,6 +111,7 @@ impl fmt::Debug for Task {
             .field("retries", &self.retries)
             .field("retry_count", &self.retry_count)
             .field("last_run", &self.last_run)
+            .field("created_at", &self.created_at)
             .field("status", &format_args!("<mutex>"))
             .field("task", &self.task)
             .finish()
@@ -106,6 +141,7 @@ impl Task {
             retry_count: 0,
             status: Arc::new(Mutex::new(TaskStatus::Pending)),
             last_run: None,
+            created_at: Utc::now(),
         }
     }
 
@@ -130,7 +166,10 @@ impl Task {
                 self.retry_count += 1;
                 if self.retry_count >= self.retries {
                     *status = TaskStatus::Failed(err.to_string());
-                    Err(SchedulerError::MaxRetriesExceeded)
+                    Err(SchedulerError::MaxRetriesExceeded {
+                        max_retries: self.retries,
+                        last_error: err.to_string(),
+                    })
                 } else {
                     *status = TaskStatus::Failed(format!("Retry {}/{}", self.retry_count, self.retries));
                     Err(err)
@@ -158,4 +197,16 @@ impl Task {
     pub fn get_task_name(&self) -> &str {
         &self.task_name
     }
+
+    /// Get the task's unique identifier
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
+
+/// Builder for creating Task instances with a fluent interface
+pub use crate::TaskBuilder;
