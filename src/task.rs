@@ -1,3 +1,9 @@
+//! Task management and execution
+//! 
+//! This module provides the core task functionality, including task creation,
+//! execution, and status management. It defines the Task struct and its
+//! associated types.
+
 use crate::error::SchedulerError;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Serialize, Deserialize};
@@ -6,13 +12,23 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
+/// Represents the current status of a task
+/// 
+/// This enum tracks the lifecycle of a task from creation through execution
+/// and completion or failure.
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub enum TaskStatus {
+    /// Task is waiting to be executed
     Pending,
+    /// Task is currently executing
     Running,
+    /// Task has completed successfully
     Completed,
+    /// Task failed with an error message
     Failed(String),
+    /// Task execution is paused
     Paused,
+    /// Task has been cancelled
     Cancelled,
 }
 
@@ -56,9 +72,12 @@ impl From<String> for TaskStatus {
     }
 }
 
-// Wrapper type for our task function that implements Debug
+/// A wrapper type for task functions that implements Debug
+/// 
+/// This type wraps the actual task function to provide debug formatting
+/// while maintaining the function's execution capabilities.
 #[derive(Clone)]
-pub(crate) struct TaskFn(Arc<dyn Fn() -> Result<(), SchedulerError> + Send + Sync + 'static>);
+pub struct TaskFn(Arc<dyn Fn() -> Result<(), SchedulerError> + Send + Sync + 'static>);
 
 impl fmt::Debug for TaskFn {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -68,6 +87,22 @@ impl fmt::Debug for TaskFn {
 }
 
 /// A scheduled task that can be executed
+/// 
+/// This struct represents a task in the scheduler, containing all the information
+/// needed to execute the task at the appropriate time and track its status.
+/// 
+/// # Fields
+/// 
+/// * `id` - Unique identifier for the task
+/// * `name` - Human-readable name of the task
+/// * `task_name` - Name of the function being executed
+/// * `task` - The actual function to execute
+/// * `next_run` - When the task should next execute
+/// * `last_run` - When the task last executed
+/// * `interval` - Time between executions
+/// * `status` - Current execution status
+/// * `retries` - Number of retry attempts remaining
+/// * `created_at` - When the task was created
 pub struct Task {
     pub(crate) id: String,
     pub(crate) name: String,
@@ -119,7 +154,21 @@ impl fmt::Debug for Task {
 }
 
 impl Task {
-    pub(crate) fn new<F>(
+    /// Creates a new task with the specified parameters
+    /// 
+    /// # Arguments
+    /// 
+    /// * `name` - Human-readable name for the task
+    /// * `task_name` - Name of the function being executed
+    /// * `task` - The function to execute
+    /// * `next_run` - Optional next execution time
+    /// * `interval` - Optional interval between executions
+    /// * `retries` - Number of retry attempts allowed
+    /// 
+    /// # Returns
+    /// 
+    /// A new Task instance configured with the provided parameters
+    pub fn new<F>(
         name: String,
         task_name: String,
         task: F,
@@ -145,6 +194,15 @@ impl Task {
         }
     }
 
+    /// Executes the task and updates its status
+    /// 
+    /// This method runs the task function and handles any errors that occur,
+    /// including retry logic if configured.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` if the task executed successfully
+    /// * `Err(SchedulerError)` if the task failed and retries were exhausted
     pub async fn execute(&mut self) -> Result<(), SchedulerError> {
         let mut status = self.status.lock().await;
         *status = TaskStatus::Running;
@@ -178,6 +236,11 @@ impl Task {
         }
     }
 
+    /// Checks if the task is due for execution
+    /// 
+    /// # Returns
+    /// 
+    /// `true` if the task should be executed now, `false` otherwise
     pub fn is_due(&self) -> bool {
         if let Some(next_run) = self.next_run {
             Utc::now() >= next_run
@@ -186,23 +249,47 @@ impl Task {
         }
     }
 
+    /// Gets the current status of the task
+    /// 
+    /// # Returns
+    /// 
+    /// The current TaskStatus
     pub async fn get_status(&self) -> TaskStatus {
         self.status.lock().await.clone()
     }
 
+    /// Gets the human-readable name of the task
+    /// 
+    /// # Returns
+    /// 
+    /// The task's name as a string slice
     pub fn get_name(&self) -> &str {
         &self.name
     }
 
+    /// Gets the name of the function being executed
+    /// 
+    /// # Returns
+    /// 
+    /// The task function's name as a string slice
     pub fn get_task_name(&self) -> &str {
         &self.task_name
     }
 
-    /// Get the task's unique identifier
+    /// Gets the task's unique identifier
+    /// 
+    /// # Returns
+    /// 
+    /// The task's ID as a string slice
     pub fn id(&self) -> &str {
         &self.id
     }
 
+    /// Gets the task's human-readable name
+    /// 
+    /// # Returns
+    /// 
+    /// The task's name as a string slice
     pub fn name(&self) -> &str {
         &self.name
     }

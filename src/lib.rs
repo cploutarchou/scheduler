@@ -1,7 +1,21 @@
 //! A non-blocking task scheduler for Rust
 //! 
 //! This library provides a flexible, non-blocking task scheduler that can be used
-//! to schedule and execute tasks at specified intervals or times.
+//! to schedule and execute tasks at specified intervals or times. It supports:
+//! 
+//! - Scheduling tasks at fixed intervals (seconds, minutes, hours, days)
+//! - Daily tasks at specific times
+//! - Task persistence across application restarts
+//! - Error handling and retry mechanisms
+//! - Async/await support with Tokio
+//! 
+//! # Features
+//! 
+//! - **Non-blocking execution**: Tasks run asynchronously without blocking the main thread
+//! - **Flexible scheduling**: Support for various scheduling patterns
+//! - **Persistence**: Optional task persistence using SQLite
+//! - **Error handling**: Comprehensive error types and recovery strategies
+//! - **Builder pattern**: Fluent interface for creating tasks
 //! 
 //! # Example
 //! ```rust
@@ -47,6 +61,13 @@
 //!     Ok(())
 //! }
 //! ```
+//! 
+//! # Modules
+//! 
+//! - [`error`]: Error types and handling
+//! - [`task`]: Task definition and execution
+//! - [`scheduler`]: Core scheduling functionality
+//! - [`persistence`]: Task persistence and storage
 
 pub mod error;
 pub mod task;
@@ -58,6 +79,27 @@ pub use scheduler::{Scheduler, Job};
 pub use task::{Task, TaskStatus};
 
 /// A builder for creating tasks with a fluent interface
+/// 
+/// The TaskBuilder provides a convenient way to configure and create tasks
+/// with various scheduling options. It supports:
+/// 
+/// - Setting task name and function
+/// - Configuring execution interval
+/// - Setting specific execution times
+/// - Configuring retry behavior
+/// 
+/// # Example
+/// 
+/// ```rust
+/// use scheduler::TaskBuilder;
+/// 
+/// let task = TaskBuilder::new("my_task", || {
+///     println!("Task executed!");
+///     Ok(())
+/// })
+/// .every_seconds(30)
+/// .build();
+/// ```
 pub struct TaskBuilder {
     name: String,
     task: Option<Box<dyn Fn() -> Result<(), SchedulerError> + Send + Sync + 'static>>,
@@ -79,7 +121,16 @@ impl Clone for TaskBuilder {
 }
 
 impl TaskBuilder {
-    /// Create a new TaskBuilder with a name and task
+    /// Creates a new TaskBuilder with a name and task function
+    /// 
+    /// # Arguments
+    /// 
+    /// * `name` - A string identifier for the task
+    /// * `task` - A function that implements the task logic
+    /// 
+    /// # Returns
+    /// 
+    /// A new TaskBuilder instance configured with the provided name and task
     pub fn new<F>(name: &str, task: F) -> Self 
     where 
         F: Fn() -> Result<(), SchedulerError> + Send + Sync + 'static,
@@ -93,25 +144,49 @@ impl TaskBuilder {
         }
     }
 
-    /// Set the task to run every second
+    /// Sets the task to run every specified number of seconds
+    /// 
+    /// # Arguments
+    /// 
+    /// * `count` - The number of seconds between executions
+    /// 
+    /// # Returns
+    /// 
+    /// The builder instance for method chaining
     pub fn every_seconds(mut self, count: u32) -> Self {
         self.interval = Some(scheduler::Interval::Second(count));
         self
     }
 
-    /// Set the task to run every minute
+    /// Sets the task to run every minute
     pub fn every_minutes(mut self, count: u32) -> Self {
         self.interval = Some(scheduler::Interval::Minute(count));
         self
     }
 
-    /// Set the task to run daily
+    /// Sets the task to run daily
+    /// 
+    /// This configures the task to run once per day. Use with `at()` to 
+    /// specify the exact time.
+    /// 
+    /// # Returns
+    /// 
+    /// The builder instance for method chaining
     pub fn daily(mut self) -> Self {
         self.interval = Some(scheduler::Interval::Day(1));
         self
     }
 
-    /// Set the time for the task
+    /// Sets the specific time for task execution
+    /// 
+    /// # Arguments
+    /// 
+    /// * `time` - A string in "HH:MM" or "HH:MM:SS" format
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(Self)` - The builder instance for method chaining
+    /// * `Err(SchedulerError)` - If the time format is invalid
     pub fn at(mut self, time: &str) -> Result<Self, SchedulerError> {
         let parts: Vec<&str> = time.split(':').collect();
         
@@ -134,7 +209,14 @@ impl TaskBuilder {
         Ok(self)
     }
 
-    /// Build the task
+    /// Builds and returns a new Task instance
+    /// 
+    /// This method consumes the builder and creates a new Task with the
+    /// configured settings.
+    /// 
+    /// # Returns
+    /// 
+    /// A new Task instance ready for scheduling
     pub fn build(self) -> Task {
         let next_run = if let Some(at_time) = self.at_time {
             let now = chrono::Utc::now();

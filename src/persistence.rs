@@ -1,3 +1,14 @@
+//! Task persistence and storage
+//! 
+//! This module provides functionality for persisting tasks to a SQLite database,
+//! allowing tasks to survive application restarts and system reboots. It handles:
+//! 
+//! - Task serialization and deserialization
+//! - Database operations (create, read, update, delete)
+//! - Error handling for persistence operations
+//! 
+//! The module uses SQLite as its storage backend for reliability and simplicity.
+
 use std::path::Path;
 use std::sync::Arc;
 use rusqlite::{Connection, params};
@@ -8,7 +19,21 @@ use chrono::{DateTime, Utc};
 use crate::task::{Task, TaskStatus};
 use crate::error::SchedulerError;
 
-/// Represents a persistable version of a task
+/// A serializable representation of a task for database storage
+/// 
+/// This struct contains all task data that needs to be persisted,
+/// with appropriate serialization support for database storage.
+/// 
+/// # Fields
+/// 
+/// * `id` - Unique identifier for the task
+/// * `name` - Human-readable name
+/// * `status` - Current execution status
+/// * `created_at` - Creation timestamp
+/// * `last_executed` - Last execution timestamp
+/// * `next_execution` - Next scheduled execution
+/// * `interval_seconds` - Execution interval in seconds
+/// * `daily_time` - Specific time for daily tasks
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PersistableTask {
     pub id: String,
@@ -21,13 +46,29 @@ pub struct PersistableTask {
     pub daily_time: Option<String>,
 }
 
-/// Task Persistence Manager
+/// Manages task persistence using a SQLite database
+/// 
+/// This struct provides methods for saving and loading tasks from a
+/// SQLite database, ensuring task data survives between application
+/// restarts.
 pub struct TaskPersistenceManager {
     conn: Arc<Mutex<Connection>>,
 }
 
 impl TaskPersistenceManager {
-    /// Create a new persistence manager with a SQLite database
+    /// Creates a new persistence manager with the specified database
+    /// 
+    /// This method initializes the database connection and creates the
+    /// necessary tables if they don't exist.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `database_path` - Path to the SQLite database file
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(TaskPersistenceManager)` - Successfully created manager
+    /// * `Err(SchedulerError)` - If database initialization fails
     pub async fn new<P: AsRef<Path>>(database_path: P) -> Result<Self, SchedulerError> {
         let conn = Connection::open(database_path)
             .map_err(|e| SchedulerError::PersistenceError(e.to_string()))?;
@@ -55,7 +96,19 @@ impl TaskPersistenceManager {
         })
     }
 
-    /// Save a task to the database
+    /// Saves a task to the database
+    /// 
+    /// This method serializes and stores a task in the database. If a task
+    /// with the same ID already exists, it will be updated.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `task` - The task to save
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - Task was saved successfully
+    /// * `Err(SchedulerError)` - If the save operation fails
     pub async fn save_task(&self, task: &Task) -> Result<(), SchedulerError> {
         let persistable_task = PersistableTask {
             id: task.id().to_string(),
@@ -92,7 +145,17 @@ impl TaskPersistenceManager {
         Ok(())
     }
 
-    /// Retrieve a task by its ID
+    /// Retrieves a task from the database by its ID
+    /// 
+    /// # Arguments
+    /// 
+    /// * `task_id` - The ID of the task to retrieve
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(Some(PersistableTask))` - Task found and retrieved
+    /// * `Ok(None)` - No task found with the given ID
+    /// * `Err(SchedulerError)` - If the retrieval operation fails
     pub async fn get_task(&self, task_id: &str) -> Result<Option<PersistableTask>, SchedulerError> {
         let conn = self.conn.lock().await;
         
@@ -141,7 +204,14 @@ impl TaskPersistenceManager {
         }
     }
 
-    /// List all persisted tasks
+    /// Lists all tasks stored in the database
+    /// 
+    /// This method retrieves all tasks currently stored in the database.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(Vec<PersistableTask>)` - List of all stored tasks
+    /// * `Err(SchedulerError)` - If the retrieval operation fails
     pub async fn list_tasks(&self) -> Result<Vec<PersistableTask>, SchedulerError> {
         let conn = self.conn.lock().await;
         
@@ -188,7 +258,16 @@ impl TaskPersistenceManager {
         Ok(result)
     }
 
-    /// Delete a task by its ID
+    /// Deletes a task from the database
+    /// 
+    /// # Arguments
+    /// 
+    /// * `task_id` - The ID of the task to delete
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - Task was deleted or didn't exist
+    /// * `Err(SchedulerError)` - If the deletion operation fails
     pub async fn delete_task(&self, task_id: &str) -> Result<(), SchedulerError> {
         let conn = self.conn.lock().await;
         
@@ -198,7 +277,15 @@ impl TaskPersistenceManager {
         Ok(())
     }
 
-    /// Clear all tasks from the database
+    /// Removes all tasks from the database
+    /// 
+    /// This method deletes all stored tasks, effectively resetting
+    /// the persistence store.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - All tasks were cleared successfully
+    /// * `Err(SchedulerError)` - If the clear operation fails
     pub async fn clear_tasks(&self) -> Result<(), SchedulerError> {
         let conn = self.conn.lock().await;
         

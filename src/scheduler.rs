@@ -39,7 +39,11 @@ impl JobSchedule {
     }
 }
 
-/// The main scheduler struct that manages tasks
+/// The main scheduler struct that manages tasks and their execution
+/// 
+/// This struct is responsible for managing scheduled tasks, including their creation,
+/// execution, and lifecycle management. It provides thread-safe access to tasks
+/// through interior mutability.
 pub struct Scheduler {
     tasks: Arc<Mutex<HashMap<String, Task>>>,
     running: Arc<Mutex<bool>>,
@@ -60,7 +64,10 @@ impl Default for Scheduler {
 }
 
 impl Scheduler {
-    /// Create a new scheduler instance
+    /// Creates a new scheduler instance with empty task list
+    /// 
+    /// # Returns
+    /// A new `Scheduler` instance ready to accept and manage tasks
     pub fn new() -> Self {
         Scheduler {
             tasks: Arc::new(Mutex::new(HashMap::new())),
@@ -68,12 +75,24 @@ impl Scheduler {
         }
     }
 
-    /// Create a job that runs at the specified interval
+    /// Creates a job that runs at the specified interval
+    /// 
+    /// # Arguments
+    /// * `count` - The number of time units for the interval
+    /// 
+    /// # Returns
+    /// A new `Job` instance configured with the specified count
     pub fn every(&self, count: u32) -> Job {
         Job::new(self.clone(), count)
     }
 
-    /// Start the scheduler in a non-blocking way
+    /// Starts the scheduler in a non-blocking way
+    /// 
+    /// Begins executing scheduled tasks in the background. If the scheduler
+    /// is already running, returns the existing shutdown receiver.
+    /// 
+    /// # Returns
+    /// A broadcast receiver that will receive a signal when the scheduler stops
     pub async fn start(&self) -> tokio::sync::broadcast::Receiver<()> {
         let mut running = self.running.lock().await;
         if *running {
@@ -97,14 +116,25 @@ impl Scheduler {
         rx
     }
 
-    /// Stop the scheduler
+    /// Stops the scheduler and its task execution
+    /// 
+    /// # Returns
+    /// * `Ok(())` if stopped successfully
+    /// * `Err(SchedulerError)` if stopping fails
     pub async fn stop(&self) -> Result<(), SchedulerError> {
         let mut running = self.running.lock().await;
         *running = false;
         Ok(())
     }
 
-    /// Add a new task to the scheduler
+    /// Adds a new task to the scheduler
+    /// 
+    /// # Arguments
+    /// * `task` - The task to be scheduled
+    /// 
+    /// # Returns
+    /// * `Ok(String)` - The ID of the added task
+    /// * `Err(SchedulerError)` if adding the task fails
     pub async fn add_task(&self, task: Task) -> Result<String, SchedulerError> {
         let id = task.id.clone();
         let mut tasks = self.tasks.lock().await;
@@ -112,26 +142,60 @@ impl Scheduler {
         Ok(id)
     }
 
-    /// Remove a specific task
+    /// Removes a specific task by its ID
+    /// 
+    /// # Arguments
+    /// * `id` - The ID of the task to remove
+    /// 
+    /// # Returns
+    /// * `Ok(())` if removed successfully
+    /// * `Err(SchedulerError)` if removal fails or task not found
     pub async fn remove(&self, id: &str) -> Result<(), SchedulerError> {
         let mut tasks = self.tasks.lock().await;
         tasks.remove(id).ok_or(SchedulerError::TaskNotFound(id.to_string()))?;
         Ok(())
     }
 
-    /// Clear all scheduled tasks
+    /// Clears all scheduled tasks from the scheduler
+    /// 
+    /// # Returns
+    /// * `Ok(())` if cleared successfully
+    /// * `Err(SchedulerError)` if clearing fails
     pub async fn clear(&self) -> Result<(), SchedulerError> {
         let mut tasks = self.tasks.lock().await;
         tasks.clear();
         Ok(())
     }
 
-    /// Get the next run time of any task
+    /// Gets the next scheduled run time of any task
+    /// 
+    /// # Returns
+    /// * `Some(DateTime<Utc>)` - The earliest scheduled time of any task
+    /// * `None` if no tasks are scheduled
     pub async fn next_run(&self) -> Option<DateTime<Utc>> {
         let tasks = self.tasks.lock().await;
         tasks.values()
             .filter_map(|task| task.next_run)
             .min()
+    }
+
+    /// Gets the status of a specific task
+    /// 
+    /// # Arguments
+    /// * `id` - The ID of the task to check
+    /// 
+    /// # Returns
+    /// * `Ok(TaskStatus)` - The current status of the task
+    /// * `Err(SchedulerError)` if task not found or status check fails
+    pub async fn get_task_status(&self, id: &str) -> Result<TaskStatus, SchedulerError> {
+        let tasks = self.tasks.lock().await;
+        tasks.get(id)
+            .ok_or_else(|| SchedulerError::TaskNotFound(id.to_string()))
+            .map(|task| {
+                // Use a synchronous method to get the status
+                task.status.try_lock().map(|status| status.clone())
+                    .unwrap_or(TaskStatus::Running)
+            })
     }
 
     async fn run_pending_tasks(&self) -> Result<(), SchedulerError> {
@@ -154,18 +218,6 @@ impl Scheduler {
         }
 
         Ok(())
-    }
-
-    /// Get the status of a specific task by its ID
-    pub async fn get_task_status(&self, id: &str) -> Result<TaskStatus, SchedulerError> {
-        let tasks = self.tasks.lock().await;
-        tasks.get(id)
-            .ok_or_else(|| SchedulerError::TaskNotFound(id.to_string()))
-            .map(|task| {
-                // Use a synchronous method to get the status
-                task.status.try_lock().map(|status| status.clone())
-                    .unwrap_or(TaskStatus::Running)
-            })
     }
 }
 
