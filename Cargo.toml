@@ -8,7 +8,7 @@ readme = "README.md"
 homepage = "https://github.com/cploutarchou/scheduler"
 repository = "https://github.com/cploutarchou/scheduler"
 documentation = "https://docs.rs/scheduler"
-keywords = ["scheduler", "task", "async", "job", "tokio"]
+keywords = ["scheduler", "task", "async", "job", "tokio" ,"cron", "interval"]
 categories = [
     "asynchronous",
     "date-and-time",

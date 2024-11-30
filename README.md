@@ -92,118 +92,114 @@ For open source projects, say how it is licensed.
 ## Project status
 If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
 
-# Scheduler
+# Rust Scheduler
 
-[![Crates.io](https://img.shields.io/crates/v/scheduler.svg)](https://crates.io/crates/scheduler)
-[![Documentation](https://docs.rs/scheduler/badge.svg)](https://docs.rs/scheduler)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-A non-blocking task scheduler for Rust with a fluent API, supporting interval-based and cron-like scheduling. Built on top of Tokio, it provides an efficient and ergonomic way to schedule and manage recurring tasks in async Rust applications.
+A non-blocking, flexible task scheduler for Rust with asynchronous execution.
 
 ## Features
 
-- **Non-blocking execution**: Tasks run asynchronously without blocking the main thread
-- **Flexible scheduling**: Support for intervals (seconds, minutes, hours, days, weeks) and specific times
-- **Fluent API**: Intuitive builder pattern for creating and scheduling tasks
-- **Type-safe**: Leverages Rust's type system for compile-time guarantees
-- **Task monitoring**: Track task status, execution history, and failures
-- **Optional integrations**: Support for RabbitMQ (and Kafka coming soon)
-- **Well-tested**: Comprehensive test suite and benchmarks
+- Non-blocking task scheduling
+- Async runtime support
+- Multiple scheduling intervals (seconds, minutes, daily)
+- Error handling and retries
+- Flexible task management
 
-## Quick Start
+## Installation
 
 Add to your `Cargo.toml`:
+
 ```toml
 [dependencies]
-scheduler = "0.1.0"
+scheduler = { git = "https://github.com/yourusername/scheduler" }
+tokio = { version = "1.0", features = ["full"] }
 ```
 
-Basic usage:
+## Basic Usage
+
+### Scheduling Tasks
+
 ```rust
 use scheduler::{Scheduler, TaskBuilder};
+use tokio;
 
 #[tokio::main]
-async fn main() {
-    // Create a new scheduler
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let scheduler = Scheduler::new();
     
-    // Start the scheduler
-    let _rx = scheduler.start().await;
-    
-    // Create and add a task
-    let task = TaskBuilder::new("my_task", || {
+    // Schedule a task to run every second
+    let task1 = TaskBuilder::new("print_task", || {
         println!("Task executed!");
         Ok(())
     })
-    .every_minutes(5)  // Run every 5 minutes
-    .at("10:30")      // Starting at 10:30
+    .every_seconds(1)
     .build();
     
-    scheduler.add_task(task).await.unwrap();
-    
-    // Keep the program running
-    tokio::signal::ctrl_c().await.unwrap();
-}
-```
-
-## Advanced Usage
-
-### Interval-based Scheduling
-```rust
-let task = TaskBuilder::new("interval_task", || Ok(()))
-    .every_minutes(30)    // Every 30 minutes
-    .build();
-```
-
-### Daily Tasks
-```rust
-let task = TaskBuilder::new("daily_task", || Ok(()))
+    // Schedule a daily task at a specific time
+    let task2 = TaskBuilder::new("daily_task", || {
+        println!("Daily task at 10:30");
+        Ok(())
+    })
     .daily()
-    .at("15:00")         // At 3 PM
+    .at("10:30")
+    .unwrap()
     .build();
-```
-
-### Weekly Tasks
-```rust
-let task = TaskBuilder::new("weekly_task", || Ok(()))
-    .every_weeks(1)
-    .monday()            // Run on Mondays
-    .at("09:00")        // At 9 AM
-    .build();
-```
-
-### Task Status Monitoring
-```rust
-let task_id = scheduler.add_task(task).await?;
-let status = scheduler.get_task_status(&task_id).await?;
-
-match status {
-    TaskStatus::Running => println!("Task is running"),
-    TaskStatus::Completed => println!("Task completed"),
-    TaskStatus::Failed(err) => println!("Task failed: {}", err),
-    TaskStatus::Pending => println!("Task is pending"),
+    
+    // Add tasks to the scheduler
+    scheduler.add_task(task1).await?;
+    scheduler.add_task(task2).await?;
+    
+    // Start the scheduler
+    let rx = scheduler.start().await;
+    
+    // Run for a short duration
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    
+    // Stop the scheduler
+    scheduler.stop().await?;
+    
+    Ok(())
 }
 ```
 
-## Optional Features
+## Performance Benchmarks
 
-Enable RabbitMQ integration:
-```toml
-[dependencies]
-scheduler = { version = "0.1.0", features = ["rabbitmq"] }
-```
+### Task Addition Performance
+- Adding 100 tasks: **140.68 µs**
+  - 9% of measurements had outliers (6 high mild, 3 high severe)
 
-## Performance
+### Scheduler Operations
+- Start/Stop Scheduler: **1.0958 µs**
+  - 13% of measurements had outliers (1 low severe, 3 low mild, 4 high mild, 5 high severe)
 
-The scheduler is designed to be lightweight and efficient. Benchmark results show minimal overhead:
-- Task scheduling: ~500ns
-- Task execution: ~1μs overhead
-- Memory usage: ~200 bytes per task
+## Error Handling
+
+The scheduler provides robust error handling:
+- Tasks can return `Result` to indicate success or failure
+- Configurable retry mechanisms
+- Detailed error types for task and scheduler operations
+
+## Advanced Features
+
+- Interval-based scheduling (seconds, minutes, hours, days)
+- Specific time scheduling
+- Task status tracking
+- Flexible task management (add, remove, clear tasks)
 
 ## Contributing
 
-We welcome contributions! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License
+
+## Roadmap
+
+- [ ] More scheduling options
+- [ ] Enhanced logging
+- [ ] Persistent task storage
+- [ ] Web dashboard for task monitoring
