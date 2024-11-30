@@ -161,9 +161,10 @@ impl Scheduler {
         let tasks = self.tasks.lock().await;
         tasks.get(id)
             .ok_or_else(|| SchedulerError::TaskNotFound(id.to_string()))
-            .and_then(|task| {
-                // Since get_status is an async method, we need to use a runtime to block on it
-                Ok(tokio::runtime::Handle::current().block_on(task.get_status()))
+            .map(|task| {
+                // Use a synchronous method to get the status
+                task.status.try_lock().map(|status| status.clone())
+                    .unwrap_or(TaskStatus::Running)
             })
     }
 }

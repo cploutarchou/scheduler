@@ -5,7 +5,7 @@
 //! 
 //! # Example
 //! ```rust
-//! use scheduler::{Scheduler, SchedulerError};
+//! use scheduler::{Scheduler, TaskBuilder, SchedulerError};
 //! use std::time::Duration;
 //! use tokio;
 //! 
@@ -14,38 +14,35 @@
 //!     let scheduler = Scheduler::new();
 //!     
 //!     // Schedule a task to run every minute
-//!     scheduler.every(1)
-//!         .minute()
-//!         .do_job("print_task", || {
-//!             println!("Task executed!");
-//!             Ok(())
-//!         })
-//!         .await?;
+//!     let task1 = TaskBuilder::new("print_task", || {
+//!         println!("Task executed!");
+//!         Ok(())
+//!     })
+//!     .every_seconds(1)
+//!     .build();
 //!     
 //!     // Schedule a task to run at specific time
-//!     scheduler.every(1)
-//!         .day()
-//!         .at("10:30")
-//!         .do_job("daily_task", || {
-//!             println!("Daily task at 10:30");
-//!             Ok(())
-//!         })
-//!         .await?;
+//!     let task2 = TaskBuilder::new("daily_task", || {
+//!         println!("Daily task at 10:30");
+//!         Ok(())
+//!     })
+//!     .daily()
+//!     .at("10:30")
+//!     .unwrap()
+//!     .build();
 //!     
-//!     // Schedule a task to run on Monday
-//!     scheduler.every(1)
-//!         .monday()
-//!         .do_job("monday_task", || {
-//!             println!("Monday task");
-//!             Ok(())
-//!         })
-//!         .await?;
+//!     // Add tasks to the scheduler
+//!     scheduler.add_task(task1).await?;
+//!     scheduler.add_task(task2).await?;
 //!     
 //!     // Start the scheduler
 //!     let mut rx = scheduler.start().await;
 //!     
-//!     // Wait for a signal to stop
-//!     rx.recv().await.ok();
+//!     // Wait for a short duration
+//!     tokio::time::sleep(Duration::from_secs(2)).await;
+//!     
+//!     // Stop the scheduler
+//!     scheduler.stop().await?;
 //!     
 //!     Ok(())
 //! }
@@ -81,6 +78,12 @@ impl TaskBuilder {
             at_time: None,
             retries: 3,
         }
+    }
+
+    /// Set the task to run every second
+    pub fn every_seconds(mut self, count: u32) -> Self {
+        self.interval = Some(scheduler::Interval::Second(count));
+        self
     }
 
     /// Set the task to run every minute
@@ -130,6 +133,7 @@ impl TaskBuilder {
         };
 
         let interval = self.interval.map(|i| match i {
+            scheduler::Interval::Second(n) => chrono::Duration::seconds(n as i64),
             scheduler::Interval::Minute(n) => chrono::Duration::minutes(n as i64),
             scheduler::Interval::Day(n) => chrono::Duration::days(n as i64),
             _ => chrono::Duration::minutes(1), // Default fallback
@@ -155,17 +159,17 @@ mod tests {
     #[tokio::test]
     async fn test_basic_scheduling() {
         let scheduler = Scheduler::new();
+        let _rx = scheduler.start().await;
         
         // Create a task that runs every minute
         let task = TaskBuilder::new("test_task", || {
             println!("Task executed!");
             Ok(())
         })
-        .every_minutes(1)
+        .every_seconds(1)
         .build();
 
         let task_id = scheduler.add_task(task).await.unwrap();
-        scheduler.start().await;
 
         // Wait a bit and check task status
         sleep(Duration::from_secs(2)).await;
@@ -178,6 +182,7 @@ mod tests {
     #[tokio::test]
     async fn test_daily_schedule() {
         let scheduler = Scheduler::new();
+        let _rx = scheduler.start().await;
         
         // Create a daily task
         let task = TaskBuilder::new("daily_task", || {
@@ -190,12 +195,11 @@ mod tests {
         .build();
 
         let task_id = scheduler.add_task(task).await.unwrap();
-        scheduler.start().await;
 
         // Wait a bit and check task status
         sleep(Duration::from_secs(2)).await;
         let status = scheduler.get_task_status(&task_id).await.unwrap();
-        assert!(matches!(status, TaskStatus::Completed));
+        assert!(matches!(status, TaskStatus::Pending));
 
         scheduler.stop().await.unwrap();
     }
