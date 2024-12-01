@@ -10,15 +10,38 @@ A powerful, non-blocking task scheduler for Rust with async/await support, built
 ## Features
 
 ✨ **Async First**: Built on Tokio for true asynchronous task execution
-🔄 **Flexible Scheduling**:
-  - Interval-based (seconds, minutes, hours, days)
-  - Daily at specific times
-  - Custom scheduling patterns
+
+🔄 **Flexible Scheduling**: Interval-based (seconds, minutes, hours, days), daily at specific times, and custom scheduling patterns
+
 📦 **Persistence**: Optional SQLite-based task storage
+
 🛡️ **Robust Error Handling**: Comprehensive error types and recovery strategies
+
 🔧 **Builder Pattern**: Intuitive task configuration
+
 🧪 **Well Tested**: Extensive test coverage
+
 🚀 **Production Ready**: Version 1.0.0 with stable API
+
+## New Features (Coming Soon)
+
+🔄 **Advanced Scheduling**:
+  - Cron-style expressions for complex scheduling patterns
+  - Task dependencies and chaining
+  - Task groups for batch operations
+  - Priority levels for task execution
+
+📊 **Monitoring & Metrics**:
+  - Real-time task execution metrics
+  - Performance statistics and insights
+  - Task history and audit logs
+  - Webhook notifications for task events
+
+⚙️ **Enhanced Control**:
+  - Task timeouts with configurable actions
+  - Concurrency limits per task and globally
+  - Task tags for better organization
+  - Filtering and search capabilities
 
 ## Installation
 
@@ -105,6 +128,89 @@ match scheduler.get_task_status("task_id").await {
     Err(SchedulerError::TaskNotFound(_)) => println!("Task not found"),
     Err(e) => eprintln!("Error: {}", e),
 }
+```
+
+### Task Dependencies
+
+```rust
+let task_b = TaskBuilder::new("dependent_task", || {
+    println!("This runs after task_a");
+    Ok(())
+})
+.depends_on("task_a")
+.build();
+```
+
+### Task Groups
+
+```rust
+use tokio_task_scheduler::TaskGroup;
+
+let group = TaskGroup::new("batch_jobs")
+    .add_task(task_a)
+    .add_task(task_b)
+    .with_concurrency(2)
+    .build();
+
+scheduler.add_group(group).await?;
+```
+
+### Cron-style Scheduling
+
+```rust
+let cron_task = TaskBuilder::new("complex_schedule", || {
+    println!("Running on custom schedule");
+    Ok(())
+})
+.cron("0 0 * * *")? // Runs at midnight every day
+.build();
+```
+
+### Task Monitoring
+
+```rust
+// Subscribe to task events
+let mut events = scheduler.subscribe_events().await;
+
+tokio::spawn(async move {
+    while let Some(event) = events.recv().await {
+        match event {
+            TaskEvent::Started { id, .. } => println!("Task {} started", id),
+            TaskEvent::Completed { id, duration, .. } => {
+                println!("Task {} completed in {:?}", id, duration)
+            }
+            TaskEvent::Failed { id, error, .. } => {
+                println!("Task {} failed: {}", id, error)
+            }
+        }
+    }
+});
+```
+
+### Task Timeouts
+
+```rust
+let timeout_task = TaskBuilder::new("long_running_task", || {
+    // Long running operation
+    Ok(())
+})
+.timeout(Duration::from_secs(30))
+.on_timeout(|task| {
+    println!("Task {} timed out", task.name());
+    Ok(())
+})
+.build();
+```
+
+### Task Tags and Filtering
+
+```rust
+let tagged_task = TaskBuilder::new("tagged_task", || Ok(()))
+    .tags(vec!["production", "critical"])
+    .build();
+
+// Filter tasks by tags
+let critical_tasks = scheduler.get_tasks_by_tag("critical").await?;
 ```
 
 ## Task Status Lifecycle
