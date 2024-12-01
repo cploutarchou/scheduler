@@ -3,7 +3,6 @@
 [![Crates.io](https://img.shields.io/crates/v/tokio-task-scheduler.svg)](https://crates.io/crates/tokio-task-scheduler)
 [![Documentation](https://docs.rs/tokio-task-scheduler/badge.svg)](https://docs.rs/tokio-task-scheduler)
 [![License:MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://github.com/cploutarchou/scheduler/workflows/Rust/badge.svg)](https://github.com/cploutarchou/scheduler/actions)
 [![dependency status](https://deps.rs/repo/github/cploutarchou/scheduler/status.svg)](https://deps.rs/repo/github/cploutarchou/scheduler)
 
 A powerful, non-blocking task scheduler for Rust with async/await support, built on top of Tokio.
