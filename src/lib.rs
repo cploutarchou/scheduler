@@ -19,7 +19,7 @@
 //! 
 //! # Example
 //! ```rust
-//! use scheduler::{Scheduler, TaskBuilder, SchedulerError};
+//! use tokio_task_scheduler::{Scheduler, TaskBuilder, SchedulerError};
 //! use std::time::Duration;
 //! use tokio;
 //! 
@@ -91,7 +91,7 @@ pub use task::{Task, TaskStatus};
 /// # Example
 /// 
 /// ```rust
-/// use scheduler::TaskBuilder;
+/// use tokio_task_scheduler::TaskBuilder;
 /// 
 /// let task = TaskBuilder::new("my_task", || {
 ///     println!("Task executed!");

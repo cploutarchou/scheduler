@@ -1,14 +1,14 @@
 [package]
-name = "scheduler"
-version = "0.1.0"
+name = "tokio-task-scheduler"
+version = "1.0.0"
 edition = "2021"
 description = "A non-blocking task scheduler for Rust with fluent API, supporting interval-based and cron-like scheduling"
 license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/cploutarchou/scheduler"
 repository = "https://github.com/cploutarchou/scheduler"
-documentation = "https://docs.rs/scheduler"
-keywords = ["scheduler", "task", "async", "job", "tokio" ,"cron", "interval"]
+documentation = "https://docs.rs/tokio-task-scheduler"
+keywords = ["scheduler", "task", "async", "tokio", "cron", "interval"]
 categories = [
     "asynchronous",
     "date-and-time",
@@ -20,7 +20,7 @@ authors = ["Christos Ploutarchou <cploutarchou@gmail.com>"]
 rust-version = "1.70"
 
 [lib]
-name = "scheduler"
+name = "tokio_task_scheduler"
 path = "src/lib.rs"
 
 [dependencies]
@@ -30,7 +30,7 @@ chrono = { version = "0.4.26", features = ["serde"] }
 uuid = { version = "1.3", features = ["v4", "serde"] }
 
 # Error handling
-thiserror = "1.0.40"
+thiserror = "2.0.3"
 anyhow = "1.0.71"
 
 # Serialization
@@ -42,7 +42,7 @@ async-trait = "0.1.68"
 futures = "0.3"
 
 # Persistent storage
-rusqlite = { version = "0.29.0", features = ["bundled", "serde_json"] }
+rusqlite = { version = "0.32.1", features = ["bundled", "serde_json"] }
 
 # Logging and tracing
 tracing = "0.1"
@@ -56,7 +56,7 @@ once_cell = "1.18"
 
 [dev-dependencies]
 tokio = { version = "1.28", features = ["test-util", "macros"] }
-criterion = { version = "0.4", features = ["async_tokio"] }
+criterion = { version = "0.5.1", features = ["async_tokio"] }
 tokio-test = "0.4"
 pretty_assertions = "1.3.0"
 tempfile = "3.5.0"

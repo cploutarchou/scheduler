@@ -28,7 +28,7 @@ tokio = { version = "1.0", features = ["full"] }
 ### Scheduling Tasks
 
 ```rust
-use scheduler::{Scheduler, TaskBuilder};
+use tokio_task_scheduler::{Scheduler, TaskBuilder};
 use tokio;
 
 #[tokio::main]
@@ -120,8 +120,8 @@ The Scheduler provides robust persistent task storage using SQLite, enabling you
 ### Usage Example
 
 ```rust
-use scheduler::persistence::TaskPersistenceManager;
-use scheduler::task::TaskBuilder;
+use tokio_task_scheduler::persistence::TaskPersistenceManager;
+use tokio_task_scheduler::task::TaskBuilder;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

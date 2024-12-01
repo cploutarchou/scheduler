@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use scheduler::{Scheduler, TaskBuilder};
+use tokio_task_scheduler::{Scheduler, TaskBuilder};
 use std::time::Duration;
 
 async fn setup_scheduler() -> Scheduler {

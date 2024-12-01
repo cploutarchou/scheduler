@@ -1,4 +1,4 @@
-use scheduler::{Scheduler, TaskBuilder, TaskStatus};
+use tokio_task_scheduler::{Scheduler, TaskBuilder, TaskStatus};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -117,7 +117,7 @@ async fn test_task_error_handling() {
     let _rx = scheduler.start().await;
 
     let task = TaskBuilder::new("failing_task", || {
-        Err(scheduler::error::SchedulerError::TaskExecutionFailed(
+        Err(tokio_task_scheduler::error::SchedulerError::TaskExecutionFailed(
             "Test error".to_string(),
         ))
     })
@@ -132,7 +132,7 @@ async fn test_task_error_handling() {
     // The task might have been removed due to failure, so check for either Failed status or TaskNotFound
     match scheduler.get_task_status(&task_id).await {
         Ok(status) => assert!(matches!(status, TaskStatus::Failed(_))),
-        Err(scheduler::error::SchedulerError::TaskNotFound(_)) => {},
+        Err(tokio_task_scheduler::error::SchedulerError::TaskNotFound(_)) => {},
         Err(e) => panic!("Unexpected error: {:?}", e),
     }
 

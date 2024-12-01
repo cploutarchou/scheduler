@@ -1,5 +1,5 @@
 use anyhow::Result;
-use scheduler::{
+use tokio_task_scheduler::{
     persistence::TaskPersistenceManager, 
     task::{Task, TaskBuilder, TaskStatus}, 
     error::SchedulerError
